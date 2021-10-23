@@ -1,80 +1,33 @@
-# Import the required modules
-from selenium import webdriver
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-import time
-import json
+import argparse
 
-# Main Function
-if __name__ == "__main__":
+import util
 
-    # Enable Performance Logging of Chrome.
-    desired_capabilities = DesiredCapabilities.CHROME
-    desired_capabilities["goog:loggingPrefs"] = {"performance": "ALL"}
 
-    # Create the webdriver object and pass the arguments
-    options = webdriver.ChromeOptions()
+def network(start_url, depth):
+    # print(start_url, depth)
+    util.create_network(start_url, depth)
 
-    # Chrome will start in Headless mode
-    options.add_argument('headless')
+def path(start_url, end_url):
+    # print(start_url, end_url)
+    util.shortest_path(start_url, end_url)
 
-    # Ignores any certificate errors if there is any
-    options.add_argument("--ignore-certificate-errors")
-    # options.add_argument("--remote-debugging-port=9223")
+if __name__ == '__main__':
+    command_parser = argparse.ArgumentParser()
 
-    # Startup the chrome webdriver with executable path and
-    # pass the chrome options and desired capabilities as
-    # parameters.
-    driver = webdriver.Chrome()
+    subparsers = command_parser.add_subparsers(help="Choose a command (network or path)", dest='command')
 
-    # Send a request to the website and let it load
-    driver.get("https://memgraph.com")
+    start_parser = subparsers.add_parser('network', help='network help')
+    start_parser.add_argument('START_URL', metavar="START_URL", type=str, help="URL of starting website")
+    start_parser.add_argument('-d', '--depth', dest="DEPTH", type=int, default=2, help="maximum depth (default: 2)")
 
-    # Sleeps for 10 seconds
-    # time.sleep(10)
+    stop_parser = subparsers.add_parser('path', help='path help')
+    stop_parser.add_argument('START_URL', metavar="START_URL", type=str, help="URL of starting website")
+    stop_parser.add_argument('END_URL', metavar="END_URL", type=str, help="URL of ending website")
 
-    # Gets all the logs from performance in Chrome
-    logs = driver.get_log("performance")
+    args = command_parser.parse_args()
 
-    # Opens a writable JSON file and writes the logs in it
-    with open("network_log.json", "w", encoding="utf-8") as f:
-        f.write("[")
+    if args.command == "network":
+        network(args.START_URL, args.DEPTH)
 
-        # Iterates every logs and parses it using JSON
-        for log in logs:
-            network_log = json.loads(log["message"])["message"]
-
-            # Checks if the current 'method' key has any
-            # Network related value.
-            if ("Network.response" in network_log["method"]
-                    or "Network.request" in network_log["method"]
-                    or "Network.webSocket" in network_log["method"]):
-                # Writes the network log to a JSON file by
-                # converting the dictionary to a JSON string
-                # using json.dumps().
-                f.write(json.dumps(network_log) + ",")
-        f.write("{}]")
-
-    print("Quitting Selenium WebDriver")
-    driver.quit()
-
-    # Read the JSON File and parse it using
-    # json.loads() to find the urls containing images.
-    json_file_path = "network_log.json"
-    with open(json_file_path, "r", encoding="utf-8") as f:
-        logs = json.loads(f.read())
-
-    # Iterate the logs
-    for log in logs:
-
-        # Except block will be accessed if any of the
-        # following keys are missing.
-        try:
-            # URL is present inside the following keys
-            url = log["params"]["request"]["url"]
-
-            # Checks if the extension is .png or .jpg
-            if url[len(url) - 4:] == ".png" or url[len(url) - 4:] == ".jpg":
-                print(url, end='\n\n')
-
-        except Exception as e:
-            pass
+    elif args.command == "path":
+        path(args.START_URL, args.END_URL)
