@@ -1,14 +1,7 @@
 import mgclient
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
-
-
-def delete_network(cursor):
-    # Delete all nodes and relationships
-    query = "MATCH (n) DETACH DELETE n;"
-
-    # Execute the query
-    cursor.execute(query)
+from errors import *
 
 
 def connect_to_memgraph():
@@ -20,7 +13,15 @@ def connect_to_memgraph():
     return cursor, connection
 
 
-def scraping_one(driver, url):
+def delete_network(cursor):
+    # Delete all nodes and relationships
+    query = "MATCH (n) DETACH DELETE n;"
+
+    # Execute the query
+    cursor.execute(query)
+
+
+def scrape_website(driver, url):
     try:
         driver.get(url)
     except WebDriverException:
@@ -41,48 +42,37 @@ def scraping_one(driver, url):
     return links
 
 
-def scrape_web(cursor, driver, url, depth):
-    if depth == 0:
-        return
-    else:
-        links = scraping_one(driver, url)
+def check_if_node_exists(cursor, url):
+    query = """
+                MATCH(u: URL)
+                WHERE u.text = '{title}'
+                RETURN u
+            """.format(title=url)
+    cursor.execute(query)
+    row = cursor.fetchone()
+    return row
 
-        query = """
-                    MATCH(u: URL)
-                    WHERE u.text = '{title}'
-                    RETURN u
-                """.format(title=url)
 
-        cursor.execute(query)
+def create_node(cursor, url):
+    query = """
+                CREATE(u: URL)
+                SET u.text = '{title}'
+            """.format(title=url)
 
-        row = cursor.fetchone()
+    cursor.execute(query)
 
+def scrape(cursor, driver, url, depth):
+    if depth != 0:
+        links = scrape_website(driver, url)
+
+        row = check_if_node_exists(cursor, url)
         if row is None:
-            query = """
-                        CREATE(u: URL)
-                        SET u.text = '{title}'
-                    """.format(title=url)
-
-            cursor.execute(query)
+            create_node(cursor, url)
 
         for link in links:
-            query = """
-                        MATCH(u: URL)
-                        WHERE u.text = '{title}'
-                        RETURN u
-                    """.format(title=link)
-
-            cursor.execute(query)
-
-            row = cursor.fetchone()
-
+            row = check_if_node_exists(cursor, link)
             if row is None:
-                query = """
-                            CREATE(u: URL)
-                            SET u.text = '{title}'
-                        """.format(title=link)
-
-                cursor.execute(query)
+                create_node(cursor, link)
 
             query = """
                         MATCH (u1: URL), (u2: URL)
@@ -93,7 +83,9 @@ def scrape_web(cursor, driver, url, depth):
             cursor.execute(query)
 
             if row is None:
-                scrape_web(cursor, driver, link, depth - 1)
+                scrape(cursor, driver, link, depth - 1)
+    else:
+        return
 
 
 def create_network(start_url, depth):
@@ -113,29 +105,13 @@ def create_network(start_url, depth):
     cursor, connection = connect_to_memgraph()
     delete_network(cursor)
 
-    scrape_web(cursor, driver, start_url, depth)
+    scrape(cursor, driver, start_url, depth)
 
     print("Quitting Selenium WebDriver")
     driver.quit()
 
     connection.commit()
 
-
-class ShortestPathNotFoundError(Exception):
-    """Raised when there is no path between START_URL and END_URL"""
-    pass
-
-class WebsiteNotFoundError(Exception):
-    """Raised when the website doesn't exist"""
-    pass
-
-class WebsiteNotFoundInDBError(WebsiteNotFoundError):
-    """Raised when the website doesn't exist in Memgraph database """
-    pass
-
-class WebsiteNotFoundNetError(WebsiteNotFoundError):
-    """Raised when the website doesn't exist while scraping for network"""
-    pass
 
 def shortest_path(start_url, end_url):
     cursor, connection = connect_to_memgraph()
@@ -151,7 +127,8 @@ def shortest_path(start_url, end_url):
     if cursor.fetchone() is None:
         raise WebsiteNotFoundInDBError(f"There is no {start_url} in Memgraph database!")
 
-    query = f"""MATCH {end}
+    query = f"""
+                MATCH {end}
                 RETURN u2;
             """
 
@@ -160,12 +137,12 @@ def shortest_path(start_url, end_url):
         raise WebsiteNotFoundInDBError(f"There is no {end_url} in Memgraph database!")
 
     query = f"""
-            MATCH p = {start}
-            -[r:LINKS_TO * bfs]-
-            {end}
-            UNWIND (nodes(p)) AS rows
-            RETURN rows.text;
-        """
+                MATCH p = {start}
+                -[r:LINKS_TO * bfs]-
+                {end}
+                UNWIND (nodes(p)) AS rows
+                RETURN rows.text;
+            """
     cursor.execute(query)
 
     websites = cursor.fetchall()

@@ -4,12 +4,12 @@ import util
 
 
 def network(start_url, depth):
-    # print(start_url, depth)
     util.create_network(start_url, depth)
 
+
 def path(start_url, end_url):
-    # print(start_url, end_url)
     util.shortest_path(start_url, end_url)
+
 
 if __name__ == '__main__':
     command_parser = argparse.ArgumentParser()
