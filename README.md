@@ -13,7 +13,7 @@ The task is to build a command-line script in Python that will be able to get al
 #### Example
 ```$ python main.py network https://memgraph.com --depth 3```
 
-```$ python3 main.py path https://memgraph.com https://www.facebook.com/memgraph/videos/231540888355508/```
+```$ python main.py path https://memgraph.com https://www.facebook.com/memgraph/videos/231540888355508/```
 ```
 Shortest Path: 2
 0 - https://memgraph.com
