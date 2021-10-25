@@ -29,7 +29,7 @@ Shortest Path: 2
 #### Prerequisites
 - Memgraph package that can be downloaded <a href="https://memgraph.com/download"> here</a>.
 - To run this solution you will need <b>Python, Make, CMake</b>.
-- Memgraph's Python library, <b>pymgclient</b>, which currently only works on Linux-based system.
+- Memgraph's Python library, <b><a href="https://github.com/memgraph/pymgclient">pymgclient</a></b>, which currently only works on Linux-based system.
 - Additional Python dependencies and version requirements can be seen in ```requirements.txt```.
 
 To install and build mgclient library:
