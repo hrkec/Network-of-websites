@@ -48,14 +48,17 @@ def scrape_website(driver, url):
 
 
 def check_if_node_exists(cursor, url):
-    query = """
-                MATCH(u: URL)
-                WHERE u.text = '{title}'
-                RETURN u
-            """.format(title=url)
-    cursor.execute(query)
-    row = cursor.fetchone()
-    return row
+    try:
+        query = """
+                    MATCH(u: URL)
+                    WHERE u.text = '{title}'
+                    RETURN u
+                """.format(title=url)
+        cursor.execute(query)
+        row = cursor.fetchone()
+        return row
+    except mgclient.DatabaseError:
+        print(f"DATABASE ERROR: {url}")
 
 
 def create_node(cursor, url):
@@ -106,9 +109,11 @@ def create_network(start_url, depth):
 
     # Ignores any certificate errors if there is any
     options.add_argument("--ignore-certificate-errors")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--no-sandbox");
 
     # Startup the chrome webdriver
-    driver = webdriver.Chrome()
+    driver = webdriver.Chrome('/usr/bin/chromedriver', options=options)
 
     # Connect to memgraph database
     cursor, connection = connect_to_memgraph()
